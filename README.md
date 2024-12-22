@@ -1,18 +1,22 @@
-<a href="https://github.com/patrickenfuego/Chapterize-Audiobooks"><img alt="GitHub release (latest SemVer)" src="https://img.shields.io/github/v/release/patrickenfuego/Chapterize-Audiobooks"><a/>
-<a href="https://github.com/patrickenfuego/Chapterize-Audiobooks"><img alt="python" src="https://img.shields.io/badge/python-v3.10%2B-blue"><a/>
-<a href="https://github.com/patrickenfuego/Chapterize-Audiobooks"><img src="https://img.shields.io/badge/platform-win | linux | mac-eeeeee"><a/>
+<a href="https://github.com/jgilmore/Audiobook-To-AI-Training-data"><img alt="GitHub release (latest SemVer)" src="https://img.shields.io/github/v/release/patrickenfuego/Chapterize-Audiobooks"><a/>
+<a href="https://github.com/jgilmore/Audiobook-To-AI-Training-data"><img alt="python" src="https://img.shields.io/badge/python-v3.10%2B-blue"><a/>
+<a href="https://github.com/jgilmore/Audiobook-To-AI-Training-data"><img src="https://img.shields.io/badge/platform-win | linux | mac-eeeeee"><a/>
 
-# Chapterize-Audiobooks
+# Audiobook-To-Ai-Training-data
 
-Split a single, monolithic mp3 audiobook file into chapters using Machine Learning and ffmpeg.
+Split a single, monolithic mp3 audiobook file into chunks using Machine Learning and ffmpeg.
+The vosk-generated .srt file is merged with the supplied ebook text to insure recognition was
+accurate, and thus generate samples suitable for use for training other AI's for TTS or voice
+recognition
 
-![demo](https://user-images.githubusercontent.com/47511320/196572033-80cfe70c-eb57-4789-a7be-fcb2a03f18c5.gif)
+This documentation is from chapterize, and has only been minimally updated. There will be old
+information here.
 
 ---
 
 ## Table of Contents
 
-- [Chapterize-Audiobooks](#chapterize-audiobooks)
+- [Audiobook-To-AI-Training-data](#chapterize-audiobooks)
   - [Table of Contents](#table-of-contents)
   - [About](#about)
     - [Machine Learning](#machine-learning)
@@ -35,13 +39,9 @@ Split a single, monolithic mp3 audiobook file into chapters using Machine Learni
 
 ## About
 
-This is a simple command line utility that will chapterize your mp3 audiobooks for you. No longer will you have to dissect a waveform to look for chapter breaks, or deal with all the annoyances that come with a single audiobook file. 
+This is a "simple" command line utility that will chop your mp3 audiobooks into smaller chewable chunks for you. No longer will you have to dissect a waveform, manually compare it to the ebook text, and use audacity or something to cut it up and create your training data.
 
-You can use this as an intermediary step for creating .m4b files, or keep the files the way they are if you don't want to sacrifice audio quality through re-encoding (or prefer .mp3 files for some reason).
-
-### Machine Learning
-
-The script utilizes the `vosk-api` machine learning library which performs a speech-to-text conversion on the audiobook file, generating timestamps throughout which are stored in a srt (subrip) file. The file is then parsed, searching for phrases like "prologue", "chapter", and "epilogue", which are used as separators for the generated chapter files.
+I made this (and forked patrickenfuego's work to do so) to chop my OWN audiobooks up, as I've read several that are available on YouTube for free. Training an AI to imitate my voice is a work in progress still though, particularly with regard to character's voices.
 
 ### Models
 
@@ -53,17 +53,16 @@ Models should be saved within the project's `model` directory as this is where t
 
 If there is a model conflict, the script will perform a best effort guess to determine which one to use. If that fails, an error will be thrown.
 
-### Metadata Parsing
+### CSV files
 
-The script will also parse metadata from the source file along with the cover art (if present) and copy it into each chapter file automatically. There are CLI parameters you can use to pass your own ID3-compliant metadata properties, too, which always take precedence over the fields extracted from the source file (if there is a conflict). Otherwise, the tags will be combined and added to the final output.
+CSV files can be created to make editing chapter markers and start/stop timecodes easier. This is especially useful if the machine learning speech-to-text conversion misses a section, timecodes require tweaking, or the matching didn't quite work out.
 
-### Cue files
+IF YOU WANT TO SANITIZE YOUR DATA A LITTLE MORE, this is where you should interviene. The CSV file contains both the book text AND the phonems that were generated from it and failed to match, allowing you to easily see and correct things. Understanding of IPA (The international phonetic alphabet) is helpful, but you can mostly guess around the failures anyway.
 
-Cue files can be created to make editing chapter markers and start/stop timecodes easier. This is especially useful if the machine learning speech-to-text conversion misses a section, timecodes require tweaking, or if you wish to add additional breakpoint sections (such as 'forward' or 'aftermath') which are not currently supported by the script's parsing engine (and may not be supported anytime soon due to the difficulty required to make them work consistently without breaking other stuff).
+Set the --stop-after to "csv" and edit it by hand if needed.
 
-Cue files are always generated within the same directory as the audiobook itself, but there are arguments which allow you to specify a custom path to a cue file if it is inconvenient to keep them paired with the audiobook.
+CSV files are always generated within the same directory as the audiobook itself, but there are arguments which allow you to specify a custom path to a csv file if it is inconvenient to keep them paired with the audiobook.
 
-Cue file syntax is generated in a somewhat unconventional way to make script parsing easier, but is similar enough that it can be converted to a standard `.cue` format fairly easily.
 
 ### Configuration File
 
@@ -83,10 +82,6 @@ default_model='small'
 ffmpeg_path='ffmpeg'
 # Change this to True if you always want the script to generate a cue file
 generate_cue_file='False'
-# Set this to the cue file path you want to use. Useful for continuous edits and script runs where the
-# cue file is saved somewhere other than the current audiobook directory (the default search path).
-# The cue_path script argument takes precedence over this path if used
-cue_path=''
 ```
 
 ---
@@ -94,6 +89,7 @@ cue_path=''
 ## Dependencies
 
 - [ffmpeg](https://ffmpeg.org/)
+- [ffprobe](https://ffmpeg.org/)
 - [python](https://www.python.org/downloads/) 3.10+
   - Packages:
     - [rich](https://github.com/Textualize/rich)
@@ -192,75 +188,48 @@ The model used for speech-to-text the conversion is fairly dependent on the qual
 
 ## Usage
 
-```ruby
-usage: chapterize_ab.py [-h] or [--help]
+```
+usage: audiobook-to-AI-Training-data.py [-h] [--textfile [TEXTFILE_PATH]] [--srtfile [TIMECODES_PATH]] [--csvfile [CSVCODES_PATH]] [--stop-after srt|csv|split]
+                                        [--language [LANGUAGE]] [--model [{small,large}]] [--list_languages] [--download_model [{small,large}]]
+                                        [AUDIOBOOK_PATH]
 
-usage: chapterize_ab.py [-ll] or [--list_languages]
 
-usage: chapterize_ab.py [AUDIOBOOK_PATH] [--timecodes_file [TIMECODES_FILE]] [--language [LANGUAGE]]
-                        [--download_model [{small,large}]] [--narrator [NARRATOR]] [--comment [COMMENT]]
-                        [--model [{small,large}]] [--cover_art [COVER_ART_PATH]] [--author [AUTHOR]]
-                        [--year [YEAR]] [--title [TITLE]] [--genre [GENRE]] [--write_cue_file]
-                        [--cue_path [CUE_PATH]]
+        Splits a single monolithic mp3 audiobook file into multiple files for use in machine learning.
+        Works in three steps:
+        1. Uses vosk to generate an SRT file, which has timestamps for every word in the file.
+        2. Uses fuzzy matching to merge the text ebook file with SRT file, generating a csv file
+           with the results. This can be reviewed for accuracy and hand edited to improve results.
+        3. Splits the mp3 audiobook file into pieces based on the csv file. Stores text->audio
+           metadata in metadata-all.csv. Appends to the end, if it already exists.
+
+        Only works on mp3 files. Audio data is copied, not re-encoded. Text merging is done phonetically.
+        ebook text is assumed to be found as "mp3filename.txt"
+        csv and srt files (the intermediate storage between steps) are also named after the mp3 file.
+        output mp3 files are numbered, and the metadata-all.csv file has the corresponding ebook text.
+
 
 positional arguments:
+  AUDIOBOOK_PATH        Path to audiobook file. Positional argument. Required
 
-  AUDIOBOOK_PATH          path to audiobook mp3 file. required.
-  
+options:
+  -h, --help            show this help message and exit
+  --textfile [TEXTFILE_PATH], -tf [TEXTFILE_PATH]
+                        path to text file. Only needed to force a different name
+  --srtfile [TIMECODES_PATH], -sf [TIMECODES_PATH]
+                        path to generated srt timecode file (if ran previously in a different directory)
+  --csvfile [CSVCODES_PATH], -cf [CSVCODES_PATH]
+                        path to generated csv slicing file (if ran previously in aV different directory)
+  --stop-after srt|csv|split, -s srt|csv|split
+                        if set, stop after creating that file.
+  --language [LANGUAGE], -l [LANGUAGE]
+                        model language to use (en-us provided). See the --download_model parameter.
+  --model [{small,large}], -m [{small,large}]
+                        model type to use if multiple models are available. Default is small.
+  --list_languages, -ll
+                        List supported languages and exit
+  --download_model [{small,large}], -dm [{small,large}]
+                        download the model archive specified in the --language parameter
 
-optional argument flags:
-
-  -h, --help              show help message with usage examples and exit.
-
-  -ll, --list_languages   list supported languages and exit.
-
-  -wc, --write_cue_file   generate a cue file inside the audiobook directory for editing chapter markers.
-                          default disabled, but can be enabled permanently through defaults.toml.
-                          
-  
-optional arguments:
-  
-  --timecodes_file, -tc [TIMECODES_FILE]
-  DESCRIPTION:            optional path to an existing srt timecode file in a different directory.
-                        
-  --language, -l [LANGUAGE]
-  DESCRIPTION:            model language to use. requires a supported model.
-                          en-us is provided with the project.
-  
-  --model, -m [{small,large}]
-  DESCRIPTION:            model type to use where multiple models are available. default is small.
-  
-  --download_model, -dm [{small,large}]
-  DESCRIPTION:            download a model archive. language to download specified via
-                          the --language argument.     
-                        
-  --cover_art, -ca [COVER_ART_PATH]
-  DESCRIPTION:            path to cover art file. Optional.
-                        
-  --author, -a [AUTHOR]
-  DESCRIPTION:            audiobook author. Optional metadata field.
-
-   --narrator, -n [NARRATOR]
-  DESCRIPTION:            audiobook narrator (should be compatible with most players). 
-                          optional metadata field.
-                        
-  --title, -t [TITLE]
-  DESCRIPTION:            audiobook title. optional metadata field.
-                        
-  --genre, -g [GENRE]
-  DESCRIPTION:            audiobook genre. optional metadata field. multiple genres can be separated 
-                          by a semicolon
-                          
-  --year, -y [YEAR]
-  DESCRIPTION:            audiobook release year. optional metadata field.
-                        
-  --comment, -c [COMMENT]
-  DESCRIPTION:            audiobook comment. optional metadata field.
-
-  --cue_path, -cp [CUE_PATH]
-  DESCRIPTION:            path to cue file in non-default location (i.e., not in the audiobook directory) 
-                          containing chapter timecodes. can also be set within defaults.toml, which has 
-                          lesser precedence than this argument.
                         
 ```
 
@@ -268,15 +237,8 @@ optional arguments:
 
 > **NOTE**: Each argument has a shortened alias. Most examples use the full argument name for clarity, but it's often more convenient in practice to use the aliases
 
-```bash
-# Adding the title and genre metadata fields 
-~$ python3 ./chapterize_ab.py '/path/to/audiobook/file.mp3' --title 'Game of Thrones' --genre 'Fantasy'
-```
+Of particular interest is the "--stop-after" paremeter. Strongly recommend using this to avoid slicing your files until you've reviewed the CSV and confirmed that it meets expectations.
 
-```powershell
-# Adding an external cover art file (using shorthand flag -ca)
-PS > python .\chapterize_ab.py 'C:\path\to\audiobook\file.mp3' -ca 'C:\path\to\cover_art.jpg'
-```
 
 ```powershell
 # Set model to use German as the language (requires a different model, see above)
@@ -286,16 +248,6 @@ PS > python .\chapterize_ab.py 'C:\path\to\audiobook\file.mp3' --language 'de'
 ```bash
 # Download a different model (Italian large used here as an example)
 ~$ python3 ./chapterize_ab.py '/path/to/audiobook/file.mp3' --download_model 'large' --language 'italian'
-```
-
-```powershell
-# Write a cue file inside the audiobook directory using the --write_cue_file option flag
-PS > python .\chapterize_ab.py 'C:\path\to\audiobook\file.mp3' --write_cue_file
-```
-
-```bash
-# Specify custom path to a cue file. Overrides the default search path (audiobook directory)
-~$ python3 ./chapterize_ab.py '/path/to/audiobook/file.mp3' --cue_path '/path/to/file.cue'
 ```
 
 ---
@@ -316,12 +268,6 @@ With a volume setup, you can run this solution like so:
 docker run --rm -v "path/on/your/machine/to/audiobooks:/audiobooks" chapterizeaudiobooks "/audiobooks/file.mp3"
 ```
 
-## Improvement
-
-This script is still in alpha, and thus there are bound to be some issues; I've noticed a few words and phrases that have falsely generated chapter markers, which I'm currently compiling into an *ignore* list as I see them. With that said, it's been remarkably accurate so far.
-
-I encourage anyone who might use this to report any issues you find, particularly with false positive chapter markers. The more false positives identified, the more accurate it will be!
-
 ### Language Support
 
 So far, support for this project is primarily targeted toward English audiobooks only; I've added some German content, but I'm by no means a fluent speaker and there are a lot of gaps.
@@ -334,4 +280,4 @@ If you want to contribute an exclusion list and chapter markers for other langua
 
 ### Access Denied Error on Windows
 
-Every once in a while when downloading a new model on Windows, it will throw an "Access Denied" exception after attempting to rename the extracted file. This isn't really a permissions issue, but rather a concurrency one. I've found that closing any app or Explorer window that might be related to Chapterize-Audiobooks usually fixes this problem. This seems to be a somewhat common issue with Python on Windows when renaming/deleting/moving files.
+Every once in a while when downloading a new model on Windows, it will throw an "Access Denied" exception after attempting to rename the extracted file. This isn't really a permissions issue, but rather a concurrency one. I've found that closing any app or Explorer window that might be related to Audiobook-To-AI-Training-data usually fixes this problem. This seems to be a somewhat common issue with Python on Windows when renaming/deleting/moving files.
